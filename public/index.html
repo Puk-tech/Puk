@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Penguin Multiplayer</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; }
+    #gameCanvas { display: block; background: #cceeff; }
+    #emojiMenu { position: absolute; bottom: 60px; left: 20px; background: white; padding: 5px; border-radius: 6px; display: none; z-index: 10; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <button id="emojiButton" style="position:absolute;bottom:10px;left:10px;z-index:2">😀</button>
+  <div id="emojiMenu">
+    <span style="cursor:pointer">❤️</span>
+    <span style="cursor:pointer">😃</span>
+    <span style="cursor:pointer">🐧</span>
+    <span style="cursor:pointer">🎄</span>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const penguinImg = new Image();
+    penguinImg.src = "penguin_avatar_final.png";
+
+    const players = {};
+    let myId = null;
+
+    document.getElementById("emojiButton").addEventListener("click", () => {
+      const menu = document.getElementById("emojiMenu");
+      menu.style.display = menu.style.display === "none" ? "block" : "none";
+    });
+
+    document.getElementById("emojiMenu").addEventListener("click", (e) => {
+      if (e.target.tagName === "SPAN") {
+        socket.emit("emoji", e.target.textContent);
+        document.getElementById("emojiMenu").style.display = "none";
+      }
+    });
+
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      socket.emit("move", { x, y });
+    });
+
+    socket.on("players", (data) => {
+      for (const id in data) {
+        players[id] = data[id];
+      }
+    });
+
+    socket.on("connect", () => {
+      myId = socket.id;
+    });
+
+    socket.on("full", () => {
+      alert("Room is full. Only 4 penguins allowed.");
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const id in players) {
+        const p = players[id];
+        ctx.drawImage(penguinImg, p.x - 32, p.y - 48, 64, 64);
+        if (p.emoji) {
+          ctx.fillStyle = "white";
+          ctx.font = "20px Arial";
+          ctx.fillText(p.emoji, p.x - 10, p.y - 60);
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  </script>
+</body>
+</html>
